@@ -7,7 +7,8 @@ find_package(OpenMP)
 
 #add_executable(TP2 main.c)
 #add_executable(TP2 aggregation-openmp.c)
-add_executable(TP2 mapreduce-openmp.c)
+#add_executable(TP2 mapreduce-openmp.c)
+add_executable(TP2 traffic-openmp.c)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(TP2 PUBLIC OpenMP::OpenMP_CXX)
