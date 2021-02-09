@@ -60,18 +60,17 @@ int main(int argc,char *argv[])
            count++;
        }
        else {
+           //if counting a word before special char
+           if(count != 0){
+               printf("%d",count);
+               count =0;
+           }
            if(number){
                printf("%c",text[i]);
            }
            //if special char, print
            if(notblank && notpoint && notnewline){
                printf("%d",0);
-           }
-
-           //if counting a word before special char
-           if(count != 0){
-               printf("%d",count);
-               count =0;
            }
        }
    }

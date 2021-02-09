@@ -3,5 +3,5 @@
 
 To execute with MPI, build then use :
 ```shell
-mpiexec -np 4 TP3.exe
+mpiexec -np 12 TP3.exe ../pi-text.txt
 ```

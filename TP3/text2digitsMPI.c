@@ -27,18 +27,18 @@ int main(int argc,char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD,&my_rank);
     MPI_Comm_size(MPI_COMM_WORLD,&mpi_size);
 
-    printf("EXERCISE A\n");
+    if(my_rank ==0) printf("EXERCISE B\n");
 
     strcpy(filename,argv[1]);
     // getting started (we suppose that the argv[1] contains the filename related to the text)
     input = fopen(filename,"r");
     if (!input)
     {
-        fprintf(stderr,"%s: impossible to open file '%s', stopping\n",argv[0],filename);
+        if(my_rank ==0) fprintf(stderr,"%s: impossible to open file '%s', stopping\n",argv[0],filename);
         return 1;
     }
     else{
-         printf("File %s opened.\n",filename);
+        if(my_rank ==0) printf("File %s opened.\n",filename);
     }
 
     // checking file size
@@ -50,16 +50,10 @@ int main(int argc,char *argv[])
     text = (char*)calloc(text_size + 1, sizeof(char));
     for (i = 0; i < text_size; i++) text[i] = fgetc(input);
 
-    //split text for each mpi part
+    //PREPARE MPI
+    // split text for each mpi part
     step = text_size / mpi_size;
     start = step*my_rank;
-
-    //master code
-
-    //init data
-    //Distribute
-
-    //Collect
 
 
     //WORKER CODE
@@ -80,14 +74,11 @@ int main(int argc,char *argv[])
         end = text_size;
     }
 
-    //receive
-    //compute
-    //Send back results
-
+    int * digits = malloc((end-start) * sizeof(int));
+    int nDigits = 0;
 
     // converting the text
     count = 0;
-    printf("%d",my_rank);
     for (i = start; i < end; i++) {
          ascii_code = (int) text[i];
          notblank = (ascii_code != 32);
@@ -102,25 +93,45 @@ int main(int argc,char *argv[])
               count++;
          }
          else {
+             //if counting a word before special char
+             if(count != 0){
+                 //printf("%d",count);
+                 digits[nDigits] = count;
+                 nDigits++;
+                 count =0;
+             }
               if(number){
-                    printf("%c",text[i]);
+                    //printf("%c",text[i]);
+                    digits[nDigits] = atoi(&text[i]);
+                    nDigits++;
               }
               //if special char, print 0
               if(notblank && notpoint && notnewline){
-                    printf("%d",0);
-              }
-
-              //if counting a word before special char
-              if(count != 0){
-                    printf("%d",count);
-                    count =0;
+                    //printf("%d",0);
+                      digits[nDigits] = 0;
+                      nDigits++;
               }
          }
     }
     if(count != 0){
-      printf("%d",count);
+      //printf("%d",count);
+        digits[nDigits] = count;
+        nDigits++;
     }
-    printf("\n");
+
+    //Printing in parallel, in rank order
+    for(int p = 0; p<mpi_size;p++){
+        if(p == my_rank){
+            printf("Processor %d: ",my_rank);
+                for(i=0;i<nDigits;i++){
+                    printf("%d",digits[i]);
+                }
+                printf("\n");
+        }
+        else{
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+    }
 
 
     // closing
