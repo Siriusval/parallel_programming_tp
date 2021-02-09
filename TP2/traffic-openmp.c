@@ -57,22 +57,13 @@ void printCars(struct Car cars [], int size){
  */
 int getStoppedCars(struct Car cars [NB_CARS], struct Car res [NB_CARS]){
     int count = 0;
-    #pragma omp parallel
-    {
-        #pragma omp for
-        {
-            for(int i = 0; i < NB_CARS; i++){
-                if(cars[i].speed == 0){
 
-                    #pragma omp critical
-                    {
-                        res[count] = cars[i];
-                        count++;
-                    }
-                }
-            }
+    for(int i = 0; i < NB_CARS; i++){
+        if(cars[i].speed == 0){
+            res[count] = cars[i];
+            count++;
         }
-    };
+    }
 
     return count;
 }
@@ -83,22 +74,14 @@ int getStoppedCars(struct Car cars [NB_CARS], struct Car res [NB_CARS]){
  */
 int getCarsAtPlace2(struct Car cars [NB_CARS], struct Car res [NB_CARS]){
     int count = 0;
-    #pragma omp parallel
-    {
-        #pragma omp for
-        {
-            for(int i = 0; i < NB_CARS; i++){
-                if(cars[i].place == 2){
 
-                    #pragma omp critical
-                    {
-                        res[count] = cars[i];
-                        count++;
-                    }
-                }
-            }
+    for(int i = 0; i < NB_CARS; i++){
+        if(cars[i].place == 2){
+            res[count] = cars[i];
+            count++;
+
         }
-    };
+    }
 
     return count;
 }
@@ -148,17 +131,33 @@ int main()
     printCars(cars, NB_CARS);
     printf("\n");
 
-    //Stopped cars
-    printf("Stopped cars\n");
     struct Car results1 [NB_CARS];
-    int size1 = getStoppedCars(cars,results1);
+    struct Car results2 [NB_CARS];
+    int size1;
+    int size2;
+
+    #pragma omp parallel shared(cars)
+    {
+        #pragma omp sections
+        {
+            #pragma omp section
+            {
+                //Stopped cars
+                size1 = getStoppedCars(cars,results1);
+            }
+
+            #pragma omp section
+            {
+                //Cars at place 2
+                size2 = getCarsAtPlace2(cars,results2);
+            }
+        } /* sections end*/
+    } /* parallel end */
+
+    printf("Stopped cars\n");
     printCars(results1,size1);
     printf("\n");
-
-    //Cars at place 2
     printf("Cars at place 2\n");
-    struct Car results2 [NB_CARS];
-    int size2 = getCarsAtPlace2(cars,results2);
     printCars(results2,size2);
     printf("\n");
 
