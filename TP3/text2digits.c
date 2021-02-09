@@ -20,6 +20,8 @@ int main(int argc,char *argv[])
    short number,minletter,majletter;
    FILE *input;
 
+   printf("EXERCISE A\n");
+
    strcpy(filename,argv[1]);
    // getting started (we suppose that the argv[1] contains the filename related to the text)
    input = fopen(filename,"r");
@@ -57,18 +59,25 @@ int main(int argc,char *argv[])
        if(majletter || minletter){
            count++;
        }
-       else{
-           //if counting a word before special char
-           if(count != 0){
-               printf("%d",count);
-               count =0;
+       else {
+           if(number){
+               printf("%c",text[i]);
            }
            //if special char, print
            if(notblank && notpoint && notnewline){
                printf("%d",0);
            }
+
+           //if counting a word before special char
+           if(count != 0){
+               printf("%d",count);
+               count =0;
+           }
        }
    }
+    if(count != 0){
+        printf("%d",count);
+    }
    printf("\n");
 
    // to be completed
