@@ -118,13 +118,12 @@ int main()
 
     //Reduce1
     reduce1(count);
+    printf("\nReduce 1 : \n");
     printArrayInt(count[0]);
 
     //Reduce 2
     int sum = reduce2(count);
-    printf("Sum : %d\n",sum);
+    printf("reduce 2 : %d\n",sum);
 
     return 0;
 }
-
-
