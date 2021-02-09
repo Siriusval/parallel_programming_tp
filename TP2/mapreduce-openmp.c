@@ -123,7 +123,7 @@ int main()
 
     //Reduce 2
     int sum = reduce2(count);
-    printf("reduce 2 : %d\n",sum);
+    printf("Reduce 2 : %d\n",sum);
 
     return 0;
 }
