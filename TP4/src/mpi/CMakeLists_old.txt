@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.17)
+project(TP4 C)
+
+set(CMAKE_C_STANDARD 99)
+find_package(MPI REQUIRED)
+
+
+add_library(TP4 OBJECT src/lib/gameoflife.c src/lib/gameoflife.h)
+add_executable(TP4_Sequential src/seq/gameoflife_Seq.c $<TARGET_OBJECTS:TP4>)
+add_executable(TP4_Parallel src/mpi/gameoflife_MPI.c src/mpi/gameoflife_MPI.h $<TARGET_OBJECTS:TP4>)
+
+if(WIN32)
+    target_link_libraries(TP4 PUBLIC MPI::MPI_C wsock32 ws2_32)
+else()
+    target_link_libraries(TP4 PUBLIC MPI::MPI_C)
+endif()

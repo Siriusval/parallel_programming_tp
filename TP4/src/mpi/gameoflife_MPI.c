@@ -1,13 +1,6 @@
-
-/*
- * Conway's Game of Life
- *
- * A. Mucherino
- *
- * PPAR, TP4
- *
+/**
+ * @author Valou
  */
-
 #ifdef _WIN32
 #include <windows.h> //For windows Sleep() & gethostname
 #endif
@@ -19,17 +12,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "gameoflife.h"
+#include "../lib/inc/gameoflife.h"
+#include "gameoflife_MPI.h"
 #include "mpi.h"
 
+int allReduceChange(int *change) {
+    int reduction_result = 0;
 
-int allReduceChange( int *my_rank) {
-    int receivedValue;
-    MPI_Allreduce(my_rank, &receivedValue, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    return receivedValue;
+    MPI_Allreduce(change, &reduction_result, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    return reduction_result;
 }
 
-void gatherResults(unsigned int *world1, int my_rank, int startRowId, int nbRows) {
+void gatherResults(unsigned int **world1, int my_rank, int mpi_size, int startRowId, int nbRows) {
     int numberOfCellsToSend = N * nbRows;
 
     unsigned int * localData = (unsigned int *) calloc(numberOfCellsToSend, sizeof(unsigned int));
@@ -37,27 +31,24 @@ void gatherResults(unsigned int *world1, int my_rank, int startRowId, int nbRows
 
     //Create buffer to receive
     if(my_rank==0){
-        globalData = (unsigned int *) calloc(N * N, sizeof(unsigned int));
+        globalData = (unsigned int *) calloc(mpi_size*numberOfCellsToSend, sizeof(unsigned int));
     }
     //Prepare part to send
     unsigned int cellToStartFrom = code(0,startRowId,0,0);
-    memcpy(localData, &world1[cellToStartFrom], numberOfCellsToSend);
+    unsigned int * worldData = *world1;
 
-    MPI_Gather(&localData,numberOfCellsToSend,MPI_UNSIGNED,globalData,numberOfCellsToSend,MPI_UNSIGNED,0,MPI_COMM_WORLD);
+    memcpy(localData, &worldData[cellToStartFrom], numberOfCellsToSend*sizeof(unsigned int));
+
+    MPI_Gather(localData,numberOfCellsToSend,MPI_UNSIGNED,globalData,numberOfCellsToSend,MPI_UNSIGNED,0,MPI_COMM_WORLD);
 
     //update world for root
     if(my_rank==0){
-        world1 = globalData;
+        *world1 = globalData;
     }
+
 }
 
-
-/**
- * Get the id of the thread managing the previous region (previous columns)
- * @param currentId, the id of the proc
- * @param nbProc, the total number of proc
- */
-int getPreviousThreadId(int currentId, int nbProc){
+int getPreviousThreadId(int currentId, int nbProc) {
 
     if(currentId == 0){
         return nbProc-1;
@@ -65,12 +56,7 @@ int getPreviousThreadId(int currentId, int nbProc){
     return currentId-1;
 }
 
-/**
- * Get the id of the thread managing the next region (next columns)
- * @param currentId, the id of the proc
- * @param nbProc, the total number of proc
- */
-int getNextThreadId(int currentId, int nbProc){
+int getNextThreadId(int currentId, int nbProc) {
     if(currentId == (nbProc-1)){
         return 0;
     }
@@ -78,18 +64,23 @@ int getNextThreadId(int currentId, int nbProc){
 }
 
 
-void sendTopRowAndCollect(unsigned int *world1, int startRowId, int endRowId,int my_rank,int mpi_size) {
+
+void sendTopRowAndCollect(unsigned int *world1,int my_rank, int mpi_size,int startRowId, int endRowId) {
 
     //SEND
     //Prepare data to send (first row)
     unsigned int * msg_to_send = (unsigned int *) calloc(N, sizeof(unsigned int));
     unsigned int cellIndexToStartFrom = code(0,startRowId,0,0);
-    memcpy(msg_to_send, &world1[cellIndexToStartFrom], N); /* void *memcpy(void *dest, const void * src, size_t n) */
+
+    memcpy(msg_to_send, &world1[cellIndexToStartFrom], N*sizeof(unsigned int)); /* void *memcpy(void *dest, const void * src, size_t n) */
+
     //Get destination
     int previousThreadId = getPreviousThreadId(my_rank, mpi_size);
     MPI_Request request;
     //Send to previous thread (to upper rows)
     MPI_Isend(msg_to_send, N, MPI_UNSIGNED, previousThreadId, 0, MPI_COMM_WORLD, &request);
+    printf("proc %d sent top row to %d.\t",my_rank,previousThreadId);
+    //for(int i =0;i<N;i++) printf("%d",msg_to_send[i]);printf("\n");
 
     //RECEIVE
     //Prepare to receive data
@@ -100,23 +91,28 @@ void sendTopRowAndCollect(unsigned int *world1, int startRowId, int endRowId,int
     //Receive from next thread (from lower rows)
     MPI_Recv(msg_to_recv, N, MPI_UNSIGNED, nextThreadId, 0, MPI_COMM_WORLD, &status);
     MPI_Wait(&request, &status);
+    printf("proc %d received bottom row from %d\n",my_rank,nextThreadId);
+    //for(int i =0;i<N;i++) printf("%d",msg_to_recv[i]);printf("\n");
+    fflush(stdout);
 
     //Once received, update our world
     int cellIndexToUpdateFrom = code(0,endRowId,0,0);
-    memcpy(&world1[cellIndexToUpdateFrom],msg_to_recv, N);
+    memcpy(&world1[cellIndexToUpdateFrom],msg_to_recv, N*sizeof(unsigned int));
 }
 
-void sendBottomRowAndCollect(unsigned int *world1, int startRowId, int endRowId,int my_rank,int mpi_size) {
+
+void sendBottomRowAndCollect(unsigned int *world1, int my_rank, int mpi_size,int startRowId, int endRowId) {
     //SEND
     //Prepare data to send (last inbound row)
     unsigned int * msg_to_send = (unsigned int *) calloc(N, sizeof(unsigned int));
     unsigned int cellIndexToStartFrom = code(0,endRowId,0,-1);
-    memcpy(msg_to_send, &world1[cellIndexToStartFrom], N); /* void *memcpy(void *dest, const void * src, size_t n) */
+    memcpy(msg_to_send, &world1[cellIndexToStartFrom], N*sizeof(unsigned int)); /* void *memcpy(void *dest, const void * src, size_t n) */
     //Get destination
     int nextThreadId = getNextThreadId(my_rank, mpi_size);
     MPI_Request request;
     //Send to next thread (to lower rows)
     MPI_Isend(msg_to_send, N, MPI_UNSIGNED, nextThreadId, 0, MPI_COMM_WORLD, &request);
+    printf("proc %d sent bottom row to %d.\t",my_rank,nextThreadId);
 
     //RECEIVE
     //Prepare to receive data
@@ -127,21 +123,26 @@ void sendBottomRowAndCollect(unsigned int *world1, int startRowId, int endRowId,
     //Receive from next thread (from upper rows)
     MPI_Recv(msg_to_recv, N, MPI_UNSIGNED, previousThreadId, 0, MPI_COMM_WORLD, &status);
     MPI_Wait(&request, &status);
+    printf("proc %d received top row from %d\n",my_rank,previousThreadId);
+    //for(int i =0;i<N;i++) printf("%d",msg_to_recv[i]);printf("\n");
+    fflush(stdout);
 
     //Once received, update our world
     int cellIndexToUpdateFrom = code(0,startRowId,0,-1);
-    memcpy(&world1[cellIndexToUpdateFrom],msg_to_recv, N);
+    memcpy(&world1[cellIndexToUpdateFrom],msg_to_recv, N*sizeof(unsigned int));
+
 }
+
 
 void exchangeNeighbouringRows(unsigned int *world1, int my_rank, int mpi_size, int startRowId, int endRowId) {
 
     //GIVE TOP & RECEIVE BOT
-    sendTopRowAndCollect(world1, startRowId, endRowId,my_rank,mpi_size);
+    sendTopRowAndCollect(world1,my_rank,mpi_size, startRowId, endRowId);
 
     //GIVE BOT & RECEIVE TOP SIDE
-    sendBottomRowAndCollect(world1, startRowId, endRowId,my_rank,mpi_size);
-
+    sendBottomRowAndCollect(world1,my_rank,mpi_size, startRowId, endRowId);
 }
+
 
 void printThreadStatus(int my_rank, int mpi_size) {
     char hostname[128];
@@ -155,50 +156,46 @@ void printThreadStatus(int my_rank, int mpi_size) {
     fflush(stdout);
 }
 
-
-/**
- * Init world1 & world2 for each thread
- * @param my_rank, rank of thread
- * @param world1, pointer to w1 array
- * @param world2, pointer to w2 array
- */
-void initWorlds(int my_rank, unsigned int *world1, unsigned int *world2) {
+void initWorlds(int my_rank, unsigned int **world1, unsigned int **world2,int gameMode) {
     // MPI : process 0 generates the initial world
     if(my_rank == 0){ //master code
-        //world1 = initialize_dummy();
-        //world1 = initialize_random();
-        world1 = initialize_glider();
-        //world1 = initialize_small_exploder();
+        *world1 = createWorld(gameMode);
     }
     else{
-        world1 = allocate();
+        *world1 = allocate();
     }
 
     int worldSize = N * N ;
     //MPI : process 0 sends to all other processes the generated initial world
-    MPI_Bcast(world1, worldSize, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    MPI_Bcast(*world1, worldSize, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
-    world2 = allocate();
+    //Console log
+    if(my_rank==0){
+        printf("World broadcasted\n");
+    }
+    else {
+        printf("Proc %d : World received\n",my_rank);
+    }
+    fflush(stdout);
+
+    *world2 = allocate();
 }
-
 
 
 int main(int argc, char **argv) {
 
-    //Init random generator
+    int my_rank, mpi_size;
+    MPI_Init(&argc,&argv);
+    MPI_Comm_rank(MPI_COMM_WORLD,&my_rank);
+    MPI_Comm_size(MPI_COMM_WORLD,&mpi_size);
+
     srand(time(NULL));
 
     //INIT VARS
     int it, change;
     unsigned int *world1 = NULL, *world2 = NULL;
-    unsigned int *worldaux;
-    int my_rank, mpi_size, startRowId, endRowId, nbRows; //MPI : Added
-
-    //MPI Init
-    MPI_Init(&argc,&argv);
-    MPI_Comm_rank(MPI_COMM_WORLD,&my_rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&mpi_size);
-
+    unsigned int *worldAux;
+    int  startRowId, endRowId, nbRows; //MPI : Added
 
     // MPI : all processes verify that N is divisible by p: if not, the execution is aborted;
     if(N%mpi_size != 0){
@@ -212,31 +209,45 @@ int main(int argc, char **argv) {
     //Print status of thread
     printThreadStatus(my_rank, mpi_size);
 
+    int input = 0;
     // CREATE WORLD
-    initWorlds(my_rank, world1, world2);
+    //ask game mode
+    if(my_rank==0){
+        input = askGameMode();
+    }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    initWorlds(my_rank, &world1, &world2,input);
+
+    if(my_rank==0){
+        print(world1);
+        fflush(stdout);
+    }
     //MPI : • every process computes the first and last row index of its world region;
-    nbRows = N % mpi_size;
+    nbRows = N / mpi_size;
     startRowId = nbRows * my_rank; //(incl.)
     endRowId = nbRows * (my_rank + 1); //(excl.)
+    fflush(stdout);
 
     //Loop for itMax generations
     it = 0;
     change = 1;
     while (change && it < itMax) {
-        //MPI : every process invokes newgeneration() with its first and last row index
+        //MPI : every process invokes newGeneration() with its first and last row index
         change = newGeneration(world1, world2, startRowId, endRowId);
-        //MPI : every process invokes newgeneration() with its first and last row index
-        worldaux = world1;
+
+        worldAux = world1;
         world1 = world2;
-        world2 = worldaux;
+        world2 = worldAux;
 
         //MPI : the processes exchange their neighbouring rows, necessary for computing the next generation
         //(communication type: one-to-one);
+
         exchangeNeighbouringRows(world1, my_rank, mpi_size, startRowId, endRowId);
 
         //MPI :  process 0 collects the results obtained by the other processes
-        gatherResults(world1, my_rank, startRowId, nbRows);
+        gatherResults(&world1, my_rank,mpi_size, startRowId, nbRows);
 
         if(my_rank==0){
             print(world1);
@@ -249,7 +260,7 @@ int main(int argc, char **argv) {
          * https://www.mcs.anl.gov/research/projects/mpi/mpi-standard/mpi-report-1.1/node78.htm#Node78
          * Here, if one is 1, we'll propagate 1
          */
-        change = allReduceChange(&my_rank);
+        change = allReduceChange(&change);
 
         it++;
     }
@@ -258,9 +269,12 @@ int main(int argc, char **argv) {
     free(world1);
     free(world2);
 
+
     MPI_Finalize();
     return 0;
 }
+
+
 
 
 

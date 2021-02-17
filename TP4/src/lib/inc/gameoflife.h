@@ -1,7 +1,6 @@
-//
-// Created by Valou on 16/02/2021.
-//
-
+/**
+ * @author Valou
+ */
 #ifndef TP4_GAMEOFLIFE_H
 #define TP4_GAMEOFLIFE_H
 
@@ -17,6 +16,34 @@
 extern int N;
 /** Number of iterations */
 extern int itMax;
+/** Sleep duration in ms */
+extern int sleepDurationMs;
+
+/**
+ * Create a world depending on user input
+ * @param input, the game mode
+ * @return the world corresponding to the input
+ */
+unsigned int * createWorld(int input);
+
+/**
+ * Ask number to user
+ * @return a number between 0 and 3 (incl.)
+ */
+int getNumber();
+
+/**
+ * Ask game mode to the user
+ * @return the int corresponding to the game mode
+ */
+int askGameMode();
+
+/**
+ * Fill the world with Empty cells
+ * @param world, the world array to clean
+ */
+void cleanWorld(unsigned int *world);
+
 
 /**
  * Allocate memory for N*N matrix
@@ -107,11 +134,11 @@ void neighbors(int x, int y, unsigned int *world, int *nn, int *n1, int *n2);
  * Create a new world with the new values for the cells
  * @param world1, old world
  * @param world2, current world (start empty)
- * @param xstart, id of starting column to compute (incl.)
- * @param xend, id of ending column to compute (excl.)
+ * @param yStart, id of starting row to compute (incl.)
+ * @param yEnd, id of ending row to compute (excl.)
  * @return change,  if the world has changed
  */
-short newGeneration(unsigned int *world1, unsigned int *world2, int xstart, int xend);
+short newGeneration(unsigned int *world1, unsigned int *world2, int yStart, int yEnd);
 
 /**
  * Clear console/screen
@@ -123,13 +150,5 @@ void cls();
  * @param world, the array containing the cells
  */
 void print(const unsigned int *world);
-
-/**
- * Main
- * @param argc, argument count (size of argument array)
- * @param argv, argument vector (array containing them)
- */
-//int main(int argc, char *argv[]);
-
 
 #endif //TP4_GAMEOFLIFE_H

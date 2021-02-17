@@ -1,13 +1,8 @@
-
-/*
+/**
  * Conway's Game of Life
- *
  * A. Mucherino
- *
  * PPAR, TP4
- *
  */
-
 #ifdef _WIN32
 #include <windows.h> //For windows Sleep()
 #endif
@@ -18,11 +13,72 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
-#include "gameoflife.h"
+#include "inc/gameoflife.h"
 
 int N = 32;
 int itMax = 20;
+int sleepDurationMs = 500;
+
+unsigned int *createWorld(int input) {
+    unsigned int * world;
+    switch(input){
+        case(0):
+            world = initialize_dummy();
+            break;
+        case(1):
+            world = initialize_random();
+            break;
+        case(2):
+            world = initialize_glider();
+            break;
+        case(3):
+            world = initialize_small_exploder();
+            break;
+        default:
+            printf("[ERROR] default world, glider selected\n");
+            world = initialize_glider();
+            break;
+    }
+
+    return world;
+}
+
+
+int getNumber() {
+    int number;
+    scanf("%d", &number);
+    return (number);
+}
+
+int askGameMode() {
+    int input;
+    printf("Select a game mode :\n");
+    printf("\t0 : dummy.\n");
+    printf("\t1 : random.\n");
+    printf("\t2 : glider.\n");
+    printf("\t3 : small explorer.\n");
+    fflush(stdout);
+
+    input = getNumber();
+
+    while ((input < 0) || (input > 3)) {
+        printf("[ERROR] Select a number between 0 and 3 (incl.)\n");
+        //input another number
+        input = getNumber();
+    }
+    return input;
+}
+
+void cleanWorld(unsigned int *world) {
+    //for each line
+    for (int y = 0; y < N; y++) {
+        //for each col
+        for (int x = 0; x < N; x++) {
+            //empty cell
+            write_cell(x, y, EMPTY_CELL, world);
+        }
+    }
+}
 
 unsigned int *allocate() {
     return (unsigned int *) calloc(N * N, sizeof(unsigned int));
@@ -50,10 +106,10 @@ unsigned int *initialize_random() {
     //Create word
     world = allocate();
 
-    //For each column
-    for (x = 0; x < N; x++) {
-        //For each line
-        for (y = 0; y < N; y++) {
+    //For each line
+    for (y = 0; y < N; y++) {
+        //For each column
+        for (x = 0; x < N; x++) {
             //Empty cell
             if (rand() % 5 != 0) {
                 cell = EMPTY_CELL;
@@ -77,9 +133,11 @@ unsigned int *initialize_dummy() {
     unsigned int *world;
 
     world = allocate();
-    for (x = 0; x < N; x++) {
-        for (y = 0; y < N; y++) {
-            write_cell(x, y, x % 3, world);
+    //for each line
+    for (y = 0; y < N;  y++) {
+        //for each col
+        for (x = 0; x < N; x++) {
+            write_cell(x, y, y % 3, world);
         }
     }
     return world;
@@ -90,11 +148,7 @@ unsigned int *initialize_glider() {
     unsigned int *world;
 
     world = allocate();
-    for (x = 0; x < N; x++) {
-        for (y = 0; y < N; y++) {
-            write_cell(x, y, EMPTY_CELL, world);
-        }
-    }
+    cleanWorld(world);
 
     mx = N / 2 - 1;
     my = N / 2 - 1;
@@ -120,11 +174,8 @@ unsigned int *initialize_small_exploder() {
     unsigned int *world;
 
     world = allocate();
-    for (x = 0; x < N; x++) {
-        for (y = 0; y < N; y++) {
-            write_cell(x, y, EMPTY_CELL, world);
-        }
-    }
+
+    cleanWorld(world);
 
     mx = N / 2 - 2;
     my = N / 2 - 2;
@@ -149,7 +200,6 @@ unsigned int *initialize_small_exploder() {
 
     return world;
 }
-
 
 unsigned read_cell(int x, int y, int dx, int dy, unsigned int *world) {
     int k = code(x, y, dx, dy);
@@ -207,22 +257,17 @@ void neighbors(int x, int y, unsigned int *world, int *nn, int *n1, int *n2) {
     update(x, y, dx, dy, world, nn, n1, n2);
 }
 
-short newGeneration(unsigned int *world1, unsigned int *world2, int ystart, int yend) {
+short newGeneration(unsigned int *world1, unsigned int *world2, int yStart, int yEnd) {
     int x, y;
     int nn, n1, n2;
-    unsigned int cell;
     short change = 0;
 
     // cleaning destination world
-    for (x = 0; x < N; x++) {
-        for (y = 0; y < N; y++) {
-            write_cell(x, y, EMPTY_CELL, world2);
-        }
-    }
+    cleanWorld(world2);
 
     // generating the new world
-    //Only the rows starting from xstart (incl.) to xend (excl.) (multithreading)
-    for (y = ystart; y < yend; y++) {
+    //Only the rows starting from yStart (incl.) to yEnd (excl.) (multithreading)
+    for (y = yStart; y < yEnd; y++) {
         //for each column
         for (x = 0; x < N; x++) {
 
@@ -302,48 +347,14 @@ void print(const unsigned int *world) {
     for (i = 0; i < N; i++) fprintf(stdout, "-");
     fprintf(stdout, "\n");
     #ifdef _WIN32
-    Sleep(500);
+    Sleep(sleepDurationMs);
     #endif
 
     #ifdef linux
-    sleep(500);
+    sleep(sleepDurationMs);
     #endif
 }
 
-/*
-int main(int argc, char **argv) {
 
-    //Init random generator
-    srand(time(NULL));
 
-    //INIT VARS
-    int it, change;
-    unsigned int *world1, *world2;
-    unsigned int *worldaux;
 
-    //CREATE WORLD
-    // world1 = initialize_dummy();
-    //world1 = initialize_random();
-    world1 = initialize_glider();
-    //world1 = initialize_small_exploder();
-    world2 = allocate();
-    print(world1);
-
-    //Loop for itMax generations
-    it = 0;
-    change = 1;
-    while (change && it < itMax) {
-        change = newGeneration(world1, world2, 0, N);
-        worldaux = world1;
-        world1 = world2;
-        world2 = worldaux;
-        print(world1);
-        it++;
-    }
-
-    // ending
-    free(world1);
-    free(world2);
-    return 0;
-}
- */
