@@ -327,7 +327,13 @@ void cls() {
         fprintf(stdout, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     }
      */
-    system("cls");
+    #ifdef _WIN32
+        system("cls");
+    #endif
+
+    #ifdef linux
+        system("clear");
+    #endif
 }
 
 void print(const unsigned int *world) {
@@ -347,11 +353,11 @@ void print(const unsigned int *world) {
     for (i = 0; i < N; i++) fprintf(stdout, "-");
     fprintf(stdout, "\n");
     #ifdef _WIN32
-    Sleep(sleepDurationMs);
+    Sleep(sleepDurationMs); //ms
     #endif
 
     #ifdef linux
-    sleep(sleepDurationMs);
+    usleep(sleepDurationMs*1000); //µs
     #endif
 }
 

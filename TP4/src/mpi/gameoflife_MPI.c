@@ -208,6 +208,7 @@ int main(int argc, char **argv) {
 
     //Print status of thread
     printThreadStatus(my_rank, mpi_size);
+    MPI_Barrier(MPI_COMM_WORLD);
 
     int input = 0;
     // CREATE WORLD
@@ -218,8 +219,13 @@ int main(int argc, char **argv) {
 
     MPI_Barrier(MPI_COMM_WORLD);
 
+    /*MPI : process 0 generates the initial world
+     *      process 0 sends to all other processes the generated initial world
+     *      (communication type:one-to-all);
+     */
     initWorlds(my_rank, &world1, &world2,input);
 
+    //MPI : process 0 prints the initial world on the screen
     if(my_rank==0){
         print(world1);
         fflush(stdout);
@@ -228,7 +234,6 @@ int main(int argc, char **argv) {
     nbRows = N / mpi_size;
     startRowId = nbRows * my_rank; //(incl.)
     endRowId = nbRows * (my_rank + 1); //(excl.)
-    fflush(stdout);
 
     //Loop for itMax generations
     it = 0;

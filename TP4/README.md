@@ -12,17 +12,52 @@
 sudo apt-get install mpich
 ```
 
+## Execute Windows/Linux (Easy Mode)
+
+Prebuilt files are available in ./build.  
+You can go directly to **Run** step.
+
+## Execute on Windows (Hard Mode)
+
+### Build
+
+You can build in CLion or VisualStudio.
+
+It will build 2 differents executables :
+
+- TP4_Seq for sequential execution.
+- TP4_MPI for parallel execution w/ MPI.
+
+### Run
+
+Go in the directory where \*.exe is located
+
+```shell
+cd ./cmake-build-debug/src/seq
+./TP4_Seq.exe
+```
+
+To execute with MPI use :
+
+```shell
+cd ./cmake-build-debug/src/mpi
+mpiexec -np 8 ./TP4_MPI.exe
+```
+
+## Execute on Linux (Hard Mode)
+
 ### Create makefiles with Cmake (in parent directory)
 
 ```shell
 cd TP4
-mkdir cmake-build-debug
-cmake -S ./ -B ./cmake-build-debug
+mkdir cmake-build-debug-linux
+cmake -S ./ -B ./cmake-build-debug-linux
 ```
 
-### Build executables
+### Build
 
 ```shell
+cd ./cmake-build-debug-linux
 make
 ```
 
@@ -36,18 +71,20 @@ It will build 2 differents executables :
 Go in the directory where \*.exe is located
 
 ```shell
-./TP4_Seq.exe
+cd ./src/seq
+./TP4_Seq
 ```
 
 To execute with MPI use :
 
 ```shell
-mpiexec -np 8 ./TP4_MPI.exe
+cd ./src/mpi
+mpiexec -np 8 ./TP4_MPI
 ```
 
-#### Choice for mpiexe -np argument
+## Choice for mpiexe -np argument
 
-Matrix width & height is 32.  
+Matrix width & height is 32.
 You can use this as -np argument
 
 | nbProc | nbRow per proc |
@@ -58,3 +95,7 @@ You can use this as -np argument
 | 8      | 4              |
 | 16     | 2              |
 | 32     | 1              |
+
+```
+
+```
