@@ -8,63 +8,40 @@
  *
  */
 
+#ifdef _WIN32
+#include <windows.h> //For windows Sleep()
+#endif
+
+#ifdef linux
+#include <unistd.h> //For linux sleep()
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
-//#include <unistd.h> //For linux sleep()
-#include <windows.h> //For windows Sleep()
 #include <time.h>
-#include "mpi.h"
+#include "gameoflife.h"
 
-#define EMPTY_CELL 0
-#define TYPE_O_CELL 1
-#define TYPE_X_CELL 2
-
-/** Size of world (matrix NxN) */
 int N = 32;
-/** Number of iterations */
 int itMax = 20;
 
-/**
- * Allocate memory for N*N matrix
- * @return the pointer to the allocated array
- */
 unsigned int *allocate() {
     return (unsigned int *) calloc(N * N, sizeof(unsigned int));
 }
 
-/**
- * Get cell id (from the current one)
- * @param x the coordinate x of the current cell
- * @param y the coordinate y of the current cell
- * @param dx the horizontal offset, -1, 0 or 1
- * @param dy the vertical offset, -1, 0 or 1
- */
 int code(int x, int y, int dx, int dy) {
     int i = (x + dx) % N;
     int j = (y + dy) % N;
     if (i < 0) i = N + i;
     if (j < 0) j = N + j;
-    return i * N + j;
+    return j * N + i;
 }
 
-// writing into a cell location
-/**
- * Set a new value in the cell
- * @param x, the x coordinate of the cell
- * @param y, the y coordinate of the cell
- * @param value, the new value of the cell
- * @param world, the array that contains all cells
- */
 void write_cell(int x, int y, unsigned int value, unsigned int *world) {
     int k;
     k = code(x, y, 0, 0);
     world[k] = value;
 }
 
-/**
- * Generate a world with random values in cells
- * @return the pointer to the world array
- */
 unsigned int *initialize_random() {
     int x, y;
     unsigned int cell;
@@ -81,11 +58,11 @@ unsigned int *initialize_random() {
             if (rand() % 5 != 0) {
                 cell = EMPTY_CELL;
             }
-            //o cell
+                //o cell
             else if (rand() % 2 == 0) {
                 cell = TYPE_O_CELL;
             }
-            //x cell
+                //x cell
             else {
                 cell = TYPE_X_CELL;
             }
@@ -95,11 +72,6 @@ unsigned int *initialize_random() {
     return world;
 }
 
-/**
- * Generate a world for testing
- * Only one cell
- * @return pointer to the array containing the world
- */
 unsigned int *initialize_dummy() {
     int x, y;
     unsigned int *world;
@@ -113,10 +85,6 @@ unsigned int *initialize_dummy() {
     return world;
 }
 
-/**
- * Generate a world with a glider
- * @return pointer to the array containing the world
- */
 unsigned int *initialize_glider() {
     int x, y, mx, my;
     unsigned int *world;
@@ -147,10 +115,6 @@ unsigned int *initialize_glider() {
     return world;
 }
 
-/**
- * Generate a world with a "small explorer"
- * @return pointer to the array containing the world
- */
 unsigned int *initialize_small_exploder() {
     int x, y, mx, my;
     unsigned int *world;
@@ -187,32 +151,11 @@ unsigned int *initialize_small_exploder() {
 }
 
 
-/**
- * Read the value of a cell (from the current cell)
- * @param x, the x coordinate of the current cell
- * @param y, the y coordinate of the current cell
- * @param dx, the horizontal offset of the cell to read
- * @param dy, the vertical offset of the cell to read
- * @param world the world containing the cells
- * @return the value of the cell to read
- */
 unsigned read_cell(int x, int y, int dx, int dy, unsigned int *world) {
     int k = code(x, y, dx, dy);
     return world[k];
 }
 
-/**
- * Count the number of cells around the current cell
- * Update the counters passed in parameter
- * @param x, horizontal coordinate of the current cell
- * @param y, vertical coordinate of the current cell
- * @param dx, horizontal offset of cell to look for
- * @param dy, vertical offset of cell to look for
- * @param world, the array containing the cells
- * @param nn, the counter for number of empty cells around
- * @param n1, the counter for number of type "o" cells around
- * @param n2, the counter for number of type "x" cells around
- */
 void update(int x, int y, int dx, int dy, unsigned int *world, int *nn, int *n1, int *n2) {
     unsigned int cell = read_cell(x, y, dx, dy, world);
     if (cell != EMPTY_CELL) {
@@ -226,15 +169,6 @@ void update(int x, int y, int dx, int dy, unsigned int *world, int *nn, int *n1,
 }
 
 
-/**
- * Count the neighbors around the current cell
- * @param x, horizontal coordinate of the current cell
- * @param y, vertical coordinate of the current cell
- * @param world, the array containing the cells
- * @param nn, the counter for number of empty cells around
- * @param n1, the counter for number of type "o" cells around
- * @param n2, the counter for number of type "x" cells around
- */
 void neighbors(int x, int y, unsigned int *world, int *nn, int *n1, int *n2) {
     int dx, dy;
 
@@ -271,18 +205,9 @@ void neighbors(int x, int y, unsigned int *world, int *nn, int *n1, int *n2) {
     dx = +1;
     dy = -1;
     update(x, y, dx, dy, world, nn, n1, n2);
-};
+}
 
-/**
- * Computing a new generation
- * Create a new world with the new values for the cells
- * @param world1, old world
- * @param world2, current world (start empty)
- * @param xstart, id of starting column to compute
- * @param xend, id of ending column to compute
- * @return change,  if the world has changed
- */
-short newGeneration(unsigned int *world1, unsigned int *world2, int xstart, int xend) {
+short newGeneration(unsigned int *world1, unsigned int *world2, int ystart, int yend) {
     int x, y;
     int nn, n1, n2;
     unsigned int cell;
@@ -296,32 +221,28 @@ short newGeneration(unsigned int *world1, unsigned int *world2, int xstart, int 
     }
 
     // generating the new world
-    //Only the columns starting from xstart to xend (multithreading)
-    for (x = xstart; x < xend; x++) {
-        //for each line
-        for (y = 0; y < N; y++) {
+    //Only the rows starting from xstart (incl.) to xend (excl.) (multithreading)
+    for (y = ystart; y < yend; y++) {
+        //for each column
+        for (x = 0; x < N; x++) {
 
             //Get oldValue of cell
-            unsigned oldValue = read_cell(x, y, 0, 0, world1);
-            unsigned newValue = oldValue;
+            unsigned int oldValue = read_cell(x, y, 0, 0, world1);
+            unsigned int newValue = -1;
 
             //Check neighbors
             neighbors(x, y, world1, &nn, &n1, &n2);
             int liveNeighbors = n1+n2;
-
             //if cell live
             if(oldValue != EMPTY_CELL){
                 //underpopulation, DIE! (< 2 neighbors)
-                if(liveNeighbors <2){
+                //overpopulation, DIE! (> 3 neighbors)
+                if(liveNeighbors <2 || liveNeighbors > 3){
                     newValue = EMPTY_CELL;
                 }
                 //Live on to next gen (2 or 3 neighbors)
                 else if (liveNeighbors == 2 || liveNeighbors == 3){
                     newValue = oldValue;
-                }
-                //overpopulation, DIE! (> 3 neighbors)
-                else if (liveNeighbors > 3){
-                    newValue = EMPTY_CELL;
                 }
             }
             //If cell empty & 3 neighbors, come alive
@@ -334,40 +255,39 @@ short newGeneration(unsigned int *world1, unsigned int *world2, int xstart, int 
                 }
             }
             //Else empty cell
-            else{
+            else {
                 newValue = EMPTY_CELL;
             }
-
-            //Write
-            write_cell(x,y,newValue,world2);
 
             //Check if world changed
             if(oldValue != newValue){
                 change = 1;
             }
+
+            //Write
+            if(newValue != EMPTY_CELL){ //World initialised at empty
+                write_cell(x,y,newValue,world2);
+            }
+
         }
     }
+
     return change;
 }
 
-/**
- * Clear console/screen
- */
 void cls() {
+    /*
     int i;
     for (i = 0; i < 10; i++) {
         fprintf(stdout, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     }
+     */
+    system("cls");
 }
 
-/**
- * Display the world (in console)
- * @param world, the array containing the cells
- */
 void print(const unsigned int *world) {
     int i;
-    //cls();
-    system("cls");
+    cls();
 
     for (i = 0; i < N; i++) fprintf(stdout, "-");
 
@@ -381,29 +301,25 @@ void print(const unsigned int *world) {
 
     for (i = 0; i < N; i++) fprintf(stdout, "-");
     fprintf(stdout, "\n");
+    #ifdef _WIN32
     Sleep(500);
+    #endif
+
+    #ifdef linux
+    sleep(500);
+    #endif
 }
 
-/**
- * Main
- * @param argc, argument count (size of argument array)
- * @param argv, argument vector (array containing them)
- */
-int main(int argc, char *argv[]) {
+/*
+int main(int argc, char **argv) {
+
+    //Init random generator
+    srand(time(NULL));
 
     //INIT VARS
     int it, change;
     unsigned int *world1, *world2;
     unsigned int *worldaux;
-    int my_rank, mpi_size, start, end, step; //Added for MPI
-
-    //MPI Init
-    MPI_Init(&argc,&argv);
-    MPI_Comm_rank(MPI_COMM_WORLD,&my_rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&mpi_size);
-
-    //printf("My rank : %d\n",my_rank);
-    //if(my_rank ==0) printf("MPI size : %d\n",mpi_size);
 
     //CREATE WORLD
     // world1 = initialize_dummy();
@@ -430,4 +346,4 @@ int main(int argc, char *argv[]) {
     free(world2);
     return 0;
 }
-
+ */

@@ -12,5 +12,17 @@ TP4.exe
 
 To execute with MPI use :
 ```shell
-mpiexec -np 12 TP4.exe
+mpiexec -np 8 TP4.exe
 ```
+
+Matrix width & height is 32.  
+You can use this as -np argument  
+
+| nbProc | nbRow per proc |
+| ------ | -------------- |
+| 1      | 32             |
+| 2      | 16             |
+| 4      | 8              |
+| 8      | 4              |
+| 16     | 2              |
+| 32     | 1              |
