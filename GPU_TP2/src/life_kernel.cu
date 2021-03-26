@@ -2,6 +2,10 @@
 #define RED 1
 #define BLUE 2
 #define NB_NEIGHBORS 8
+#define DOMAIN_X 128
+#define DOMAIN_Y  128
+#define STEPS 2
+#define THREADS_PER_BLOCK 64
 #define BLOCKDIM_X 64
 #define BLOCKDIM_Y 1
 #include <assert.h>
@@ -417,7 +421,7 @@ __global__ void test_kernel(){
     }
 }
 /**
- * Compute kernel
+ * Compute kernel (with shared memory)
  * Compute the new state of GoL into dest_domain
  * @param source_domain, array for GoL current state
  * @param dest_domain, array to compute GoL next state 
@@ -471,3 +475,42 @@ __global__ void life_kernel(int * source_domain, int * dest_domain,
     writeValue(dest_domain,gindex,myself);
 }
 
+/**
+ * Compute kernel (with global memory)
+ * Compute the new state of GoL into dest_domain
+ * @param source_domain, array for GoL current state
+ * @param dest_domain, array to compute GoL next state 
+ * @param domain_x, domain width
+ * @param domain_y, domain height
+ */
+__global__ void life_kernel_global(int * source_domain, int * dest_domain,
+    int domain_x, int domain_y)
+{
+    // get thread id
+    int tx = blockIdx.x * blockDim.x + threadIdx.x;
+    int ty = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    // if out of bound, thread can chill
+    if(tx >= domain_x || ty >= domain_y) return;
+   
+    int gindex = getCellId(tx,ty,domain_x); //global index
+   
+    // Read current cell
+    int myself = read_cell(source_domain, tx, ty, 0, 0,
+                           domain_x, domain_y);
+    
+    // Read the 8 neighbors
+    int neighbors[NB_NEIGHBORS];
+    getNeighborsValues(neighbors,source_domain, tx,ty,domain_x, domain_y);
+
+    //Count the numbers of red and blue neighbors
+    int nbRed = 0;
+    int nbBlue = 0;
+    countRedBlueValues(neighbors,&nbRed,&nbBlue);
+
+    // Compute new value of current cell
+    newValueOfCurrentCell(&myself,nbRed, nbBlue);
+
+    // Write it in dest_domain
+    writeValue(dest_domain,gindex,myself);
+}

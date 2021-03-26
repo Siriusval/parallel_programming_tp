@@ -65,26 +65,31 @@ int main(int argc, char ** argv)
 {
     // Definition of parameters
     printf("INFOS:\n");
-    int domain_x = 128; //grid width
-    int domain_y = 128; //grid height
+    int domain_x = DOMAIN_X; //grid width
+    int domain_y = DOMAIN_Y; //grid height
     printf("\t domain_x:%d\n",domain_x);
     printf("\t domain_y:%d\n",domain_y);
 
     int cells_per_word = 1; 
     
-    int steps = 2;	// Change this to vary the number of game rounds
+    int steps = STEPS;	// Change this to vary the number of game rounds
     printf("\t steps:%d\n",steps);
 
     //define gridSize and blockSize
-    int threads_per_block = 64;
-    int blocks_x = (domain_x + threads_per_block * cells_per_word - 1) / threads_per_block * cells_per_word;
-    int blocks_y = domain_y;
+    int threads_per_block = THREADS_PER_BLOCK;
+    int blocks_x =  (domain_x + threads_per_block * cells_per_word - 1) / threads_per_block * cells_per_word;
+    int blocks_y =  domain_y;
     printf("\t blocks_x: %d\n",blocks_x);
     printf("\t blocks_y: %d\n",blocks_y);
 
 
     dim3  grid(blocks_x, blocks_y);	// CUDA grid dimensions
-    dim3  threads(threads_per_block);	// CUDA block dimensions
+
+    //check if threadsNb match with block dim
+    assert(BLOCKDIM_X*BLOCKDIM_Y == threads_per_block);
+
+    dim3  threads(BLOCKDIM_X,BLOCKDIM_Y);	// CUDA block dimensions
+    printf("\t blockDim: (%d,%d)\n",BLOCKDIM_X,BLOCKDIM_Y);
 
     // Allocation of arrays
     // use two arrays :
@@ -108,7 +113,7 @@ int main(int argc, char ** argv)
     //cutilSafeCall(cudaMemcpyToSymbol(RED,RED,sizeof(int),0,cudaMemcpyHostToDevice));
     //cutilSafeCall(cudaMemcpyToSymbol(BLUE,BLUE,sizeof(int),0,cudaMemcpyHostToDevice));
 
-    //TEST
+    //UNIT TESTS
     test_kernel<<< 1, 1 >>>();
 
     // Timer initialization
