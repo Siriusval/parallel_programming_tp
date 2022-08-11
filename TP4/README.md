@@ -1,4 +1,19 @@
-# PPAR TP4 - Game of Life
+---
+title: Parallel Programming TP4 - Game of Life MPI  
+author: vhulot  
+date: 2021-01
+---
+
+# Parallel Programming TP4 : Game of Life MPI
+
+- Implementation of GoL
+- Sequential & parallel versions
+- linux & windows version.
+
+[**Course description**](https://istic.univ-rennes1.fr/ue-ppar)
+
+Exercises for University.
+
 
 ## Preparation
 
